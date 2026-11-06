@@ -62,6 +62,7 @@ def simulate(circuit, input_values, n_patterns, fault_gate=None):
 
         if name == fault_gate:
             values[name] = values[name] ^ mask   # the fault: flip this gate's output
+    return values
 
 # def simulate(circuit, input_values, n_patterns):
 #     mask = (1 << n_patterns) - 1   # n_patterns ones, e.g. 0b11111
