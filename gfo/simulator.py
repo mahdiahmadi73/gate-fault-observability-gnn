@@ -51,7 +51,7 @@ def eval_gate(gate_type, in_values, mask):
     return out
 
 
-def simulate(circuit, input_values, n_patterns):
+def simulate(circuit, input_values, n_patterns, fault_gate=None):
     mask = (1 << n_patterns) - 1   # n_patterns ones, e.g. 0b11111
     values = dict(input_values)
 
@@ -60,7 +60,19 @@ def simulate(circuit, input_values, n_patterns):
         in_values = [values[wire] for wire in gate.inputs]
         values[name] = eval_gate(gate.type, in_values, mask)
 
-    return values
+        if name == fault_gate:
+            values[name] = values[name] ^ mask   # the fault: flip this gate's output
+
+# def simulate(circuit, input_values, n_patterns):
+#     mask = (1 << n_patterns) - 1   # n_patterns ones, e.g. 0b11111
+#     values = dict(input_values)
+
+#     for name in topological_order(circuit):
+#         gate = circuit.gates[name]
+#         in_values = [values[wire] for wire in gate.inputs]
+#         values[name] = eval_gate(gate.type, in_values, mask)
+
+#     return values
 
 
 def all_input_patterns(circuit):
