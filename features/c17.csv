@@ -1,0 +1,7 @@
+gate,type,fan_in,fan_out,level,dist_to_output,outputs_reached,is_output
+10,NAND,2,1,1,1,1,0
+11,NAND,2,2,1,2,2,0
+16,NAND,2,2,2,1,2,0
+19,NAND,2,1,2,1,1,0
+22,NAND,2,0,3,0,1,1
+23,NAND,2,0,3,0,1,1
