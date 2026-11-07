@@ -1,6 +1,6 @@
 from gfo.bench_parser import parse_bench
 from gfo.fault_calculator import observability
-from gfo.simulator import all_input_patterns, get_bit
+from gfo.simulator import all_input_patterns, get_bit, random_input_patterns
 
 C17 = "data/bench/c17.bench"
 
@@ -45,3 +45,23 @@ def test_output_gates_always_observed():
     labels = observability(c, inputs, n)
     assert labels["22"] == 1.0
     assert labels["23"] == 1.0
+
+
+def test_same_seed_gives_same_patterns():
+    c = parse_bench(C17)
+    a = random_input_patterns(c, 1000, seed=1)
+    b = random_input_patterns(c, 1000, seed=1)
+    assert a == b
+
+
+def test_random_labels_close_to_exact_on_c17():
+    # On c17 we know the exact labels, so we can check the random estimate.
+    c = parse_bench(C17)
+    exact_inputs, n = all_input_patterns(c)
+    exact = observability(c, exact_inputs, n)
+
+    random_inputs = random_input_patterns(c, 10000, seed=0)
+    estimate = observability(c, random_inputs, 10000)
+
+    for g in c.gates:
+        assert abs(estimate[g] - exact[g]) < 0.03

@@ -1,5 +1,5 @@
 import sys
-
+import random
 from gfo.bench_parser import parse_bench
 
 
@@ -90,7 +90,21 @@ def all_input_patterns(circuit):
         input_values[wire] = value
 
     return input_values, n_patterns
+######
 
+## Random input patterns, for circuits with many inputs, where 2 pwoer of n is too large to simulate all patterns.
+def random_input_patterns(circuit, n_patterns, seed):
+    # getrandbits(n) gives an int with n random bits: one random 0/1 per pattern.
+    rng = random.Random(seed)
+    input_values = {}
+    for wire in circuit.inputs:
+        input_values[wire] = rng.getrandbits(n_patterns)
+    return input_values
+
+
+
+
+####
 
 def get_bit(value, p):
     return (value >> p) & 1
