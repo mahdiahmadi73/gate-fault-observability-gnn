@@ -1,5 +1,6 @@
 pytest
-pytest
 numpy
 scipy
 scikit-learn
+torch
+torch_geometric
