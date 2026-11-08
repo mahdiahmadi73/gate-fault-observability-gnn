@@ -6,10 +6,11 @@ from gfo.baselines import CIRCUITS, TWINS, load_circuit
 from gfo.metrics import mae, spearman, top_k_recall
 
 SEEDS = [0, 1, 2]
+CONFIGS = [(16, 50), (16, 100), (64, 100), (64, 500)]   # (hidden, epochs), fixed in advance
 
 
 class MLP(nn.Module):
-    def __init__(self, n_features, hidden=16):
+    def __init__(self, n_features, hidden):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(n_features, hidden),
@@ -32,12 +33,12 @@ def standardize(X_train, X_test):
     return (X_train - mean) / std, (X_test - mean) / std
 
 
-def train_mlp(X_train, y_train, seed, epochs=50, lr=0.01):
+def train_mlp(X_train, y_train, seed, epochs, hidden, lr=0.01):
     torch.manual_seed(seed)
     X = torch.tensor(X_train, dtype=torch.float32)
     y = torch.tensor(y_train, dtype=torch.float32)
 
-    model = MLP(X.shape[1])
+    model = MLP(X.shape[1], hidden)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
 
@@ -55,43 +56,51 @@ def predict(model, X):
         return model(torch.tensor(X, dtype=torch.float32)).numpy()
 
 
-def run(data, test, train_names):
+def fit_and_predict(data, train_names, eval_name, hidden, epochs, seed):
+    # Train on train_names, predict the interior gates of eval_name.
     X_train = np.concatenate([data[name][0] for name in train_names])
     y_train = np.concatenate([data[name][1] for name in train_names])
-    X_test, y_test, is_output = data[test]
-    X_train, X_test = standardize(X_train, X_test)
+    X_eval, y_eval, is_output = data[eval_name]
+    X_train, X_eval = standardize(X_train, X_eval)
+
+    model = train_mlp(X_train, y_train, seed, epochs, hidden)
+    pred = predict(model, X_eval)
     inside = ~is_output
-    k = max(1, inside.sum() // 10)
+    return y_eval[inside], pred[inside]
+
+
+def choose_config(data, train_names):
+    # Only training circuits are used here: each one takes a turn as validation.
+    best_score = None
+    best_config = None
+    for hidden, epochs in CONFIGS:
+        errors = []
+        for val in train_names:
+            inner_train = [name for name in train_names if name != val]
+            y, pred = fit_and_predict(data, inner_train, val, hidden, epochs, seed=0)
+            errors.append(mae(y, pred))
+        score = np.mean(errors)
+        if best_score is None or score < best_score:
+            best_score = score
+            best_config = (hidden, epochs)
+    return best_config
+
+
+def run(data, test, train_names):
+    hidden, epochs = choose_config(data, train_names)
 
     results = []
     for seed in SEEDS:
-        model = train_mlp(X_train, y_train, seed)
-
-        train_pred = predict(model, X_train)
-        test_pred = predict(model, X_test)
-
-        train_inside = np.concatenate(
-            [~data[name][2] for name in train_names]
-        )
-
-        print("Training MAE:",
-            mae(y_train[train_inside], train_pred[train_inside]))
-
-        print("Test MAE:",
-            mae(y_test[inside], test_pred[inside]))
-        pred = test_pred[inside]
-        y = y_test[inside]
+        y, pred = fit_and_predict(data, train_names, test, hidden, epochs, seed)
+        k = max(1, len(y) // 10)
         results.append([mae(y, pred), spearman(y, pred), top_k_recall(y, pred, k)])
 
     results = np.array(results)
-    
-
-    
-    return results.mean(axis=0), results.std(axis=0)
+    return (hidden, epochs), results.mean(axis=0), results.std(axis=0)
 
 
-def print_row(test, model_name, mean, std):
-    print(f"{test:6} {model_name:11} "
+def print_row(test, model_name, config, mean, std):
+    print(f"{test:6} {model_name:11} {str(config):10} "
           f"{mean[0]:.3f}±{std[0]:.3f}  {mean[1]:.3f}±{std[1]:.3f}  {mean[2]:.2f}±{std[2]:.2f}")
 
 
@@ -99,14 +108,15 @@ if __name__ == "__main__":
     data = {name: load_circuit(name) for name in CIRCUITS}
 
     print(f"MLP, leave-one-circuit-out, interior gates only, seeds {SEEDS}")
-    print("test   model       MAE          Spearman      top10%")
+    print("config chosen by validation MAE on the training circuits only")
+    print("test   model       config     MAE          Spearman      top10%")
 
     for test in CIRCUITS:
         train = [name for name in CIRCUITS if name != test]
-        mean, std = run(data, test, train)
-        print_row(test, "mlp", mean, std)
+        config, mean, std = run(data, test, train)
+        print_row(test, "mlp", config, mean, std)
 
         if test in TWINS:
             train = [name for name in train if name != TWINS[test]]
-            mean, std = run(data, test, train)
-            print_row(test, "mlp-no-twin", mean, std)
+            config, mean, std = run(data, test, train)
+            print_row(test, "mlp-no-twin", config, mean, std)
