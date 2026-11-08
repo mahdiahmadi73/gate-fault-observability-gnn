@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 
 from gfo.bench_parser import parse_bench
+from gfo.simulator import topological_order
 
 C17 = "data/bench/c17.bench"
 
@@ -36,3 +39,7 @@ def test_unsupported_gate(tmp_path):
     p = write(tmp_path, "INPUT(a)\nOUTPUT(q)\nq = DFF(a)\n")
     with pytest.raises(ValueError, match="Unknown gate type"):
         parse_bench(p)
+def test_all_bench_files_parse():
+    for path in sorted(Path("data/bench").glob("*.bench")):
+        circuit = parse_bench(path)
+        topological_order(circuit)   # also fails if a circuit has a loop
