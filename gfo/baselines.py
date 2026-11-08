@@ -7,7 +7,8 @@ from gfo.bench_parser import GATE_TYPES
 from gfo.features import FEATURE_NAMES
 from gfo.metrics import mae, spearman, top_k_recall
 
-CIRCUITS = ["c432", "c499", "c880", "c1355"]
+# CIRCUITS = ["c432", "c499", "c880", "c1355"]
+CIRCUITS = ["c432", "c499", "c880", "c1355", "c1908", "c2670", "c3540", "c5315", "c6288", "c7552"] #new circuits added to the list and dataset
 TWINS = {"c499": "c1355", "c1355": "c499"}   # same function, different gates
 
 
