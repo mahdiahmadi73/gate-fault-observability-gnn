@@ -18,6 +18,10 @@ if __name__ == "__main__":
     print(f"{test}: {len(y)} interior gates, GraphSAGE {(hidden, n_layers, epochs)}, seed 0")
     print(f"mean true C {y.mean():.3f}, mean predicted {pred.mean():.3f}")
 
+    p = np.clip(pred, 1e-7, 1 - 1e-7)   # avoid log(0)
+    raw = np.log(p / (1 - p))           # the value before the sigmoid for the predicted C. (i needed to inspect which values go into the sigmoid to get the predicted C, so I added this line to the code.)
+    print("value before sigmoid, 5% / median / 95%:", np.percentile(raw, [5, 50, 95]).round(1))
+
     bins = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
     true_counts, _ = np.histogram(y, bins=bins)
     pred_counts, _ = np.histogram(pred, bins=bins)
